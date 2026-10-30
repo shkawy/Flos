@@ -1,0 +1,32 @@
+name: build
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Merge template and mod
+        run: |
+          unzip -q template.zip -d tpl
+          unzip -q debtmod-src.zip -d dm
+          P=$(dirname "$(find tpl -name gradlew | head -1)")
+          rm -rf "$P/src/client" "$P/src/main/java" "$P/src/main/resources"
+          mkdir -p "$P/src/main"
+          cp -r dm/debtmod/src/main/. "$P/src/main/"
+          echo "PROJ=$P" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          cd "$PROJ"
+          chmod +x gradlew
+          ./gradlew build
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp build/libs/*.jar "$GITHUB_WORKSPACE/out/"
+          rm -f "$GITHUB_WORKSPACE"/out/*-sources.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debtmod
+          path: out/*.jar
